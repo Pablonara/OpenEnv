@@ -19,7 +19,7 @@ from core.client_types import StepResult
 
 from core.http_env_client import HTTPEnvClient
 
-from .models import CodeAction, CodeObservation, CodeState
+from .models import CodeAction, ShellAction, CodeObservation, CodeState
 
 if TYPE_CHECKING:
     from core.containers.runtime import ContainerProvider
@@ -28,11 +28,20 @@ if TYPE_CHECKING:
 class CodingEnv(HTTPEnvClient[CodeAction, CodeObservation]):
     # --- HTTPEnvClient abstract hooks ---
 
-    def _step_payload(self, action: CodeAction) -> dict:
+    def _step_payload(self, action) -> dict:
         # Shape expected by the server's /step endpoint under "action"
-        return {
-            "code": action.code,
-        }
+        # Handle both CodeAction and ShellAction
+        if isinstance(action, CodeAction):
+            return {
+                "code": action.code,
+            }
+        elif isinstance(action, ShellAction):
+            return {
+                "command": action.command,
+                "timeout": action.timeout,
+            }
+        else:
+            raise ValueError(f"Unsupported action type: {type(action)}")
 
     def _parse_result(self, payload: dict) -> StepResult[CodeObservation]:
         # Expecting: { "observation": {...}, "reward": <float|null>, "done": <bool>, "info": {...} }

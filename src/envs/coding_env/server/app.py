@@ -21,16 +21,58 @@ Usage:
     python -m envs.coding_env.server.app
 """
 
-from core.env_server import create_app
+from typing import Any, Dict
+
+from fastapi import FastAPI
+from core.env_server import HTTPEnvServer
+from core.env_server.types import Action
 
 from ..models import CodeAction, ShellAction, CodeObservation
 from .python_codeact_env import PythonCodeActEnv
 
+
+class CodingEnvHTTPServer(HTTPEnvServer):
+    """Custom HTTP server that handles both CodeAction and ShellAction."""
+
+    def _deserialize_action(self, action_data: Dict[str, Any]) -> Action:
+        """
+        Deserialize action data into either CodeAction or ShellAction.
+
+        Args:
+            action_data: Dictionary containing action data
+
+        Returns:
+            CodeAction or ShellAction instance based on payload content
+        """
+        # Remove metadata if present (it will be set via kw_only field)
+        metadata = action_data.pop("metadata", {})
+
+        # Detect action type based on fields present
+        if "code" in action_data:
+            # It's a CodeAction
+            action = CodeAction(code=action_data["code"])
+        elif "command" in action_data:
+            # It's a ShellAction
+            timeout = action_data.get("timeout", 30)
+            action = ShellAction(command=action_data["command"], timeout=timeout)
+        else:
+            raise ValueError(
+                f"Unknown action type. Expected 'code' or 'command' in action data, got: {list(action_data.keys())}"
+            )
+
+        action.metadata = metadata
+        return action
+
+
 # Create the environment instance
 env = PythonCodeActEnv()
 
-# Create the app with web interface and README integration
-app = create_app(env, CodeAction, CodeObservation, env_name="coding_env")
+# Create FastAPI app
+app = FastAPI(title="Coding Environment Server")
+
+# Create custom server and register routes
+server = CodingEnvHTTPServer(env, CodeAction, CodeObservation)
+server.register_routes(app)
 
 
 if __name__ == "__main__":
