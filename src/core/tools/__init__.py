@@ -8,9 +8,11 @@
 
 from .git_server_client import GitServerClient, RepoInfo
 from .local_python_executor import PyExecutor
+from .shell_executor import ShellExecutor
 
 __all__ = [
     "PyExecutor",
+    "ShellExecutor",
     "GitServerClient",
     "RepoInfo",
 ]

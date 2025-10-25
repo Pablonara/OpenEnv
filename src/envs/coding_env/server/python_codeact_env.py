@@ -8,15 +8,15 @@
 Python Code Action Environment.
 
 This module provides a server-side environment implementation for executing
-Python code actions using PyExecutor.
+Python code actions using PyExecutor and shell commands using ShellExecutor.
 """
 
 import uuid
 
 from core.env_server import Action, Environment, Observation
-from core.tools import PyExecutor
+from core.tools import PyExecutor, ShellExecutor
 
-from ..models import CodeAction, CodeObservation, CodeState
+from ..models import CodeAction, ShellAction, CodeObservation, CodeState
 from .transforms import create_safe_coding_transform
 
 
@@ -24,9 +24,9 @@ class PythonCodeActEnv(Environment):
     """
     Python Code Action Environment for executing code and tracking state.
 
-    This environment executes Python code submitted as CodeAction during step,
-    maintains the last exit code in its state, and returns results wrapped
-    in CodeObservation.
+    This environment executes Python code (CodeAction) or shell commands
+    (ShellAction) during step, maintains the last exit code in its state,
+    and returns results wrapped in CodeObservation.
 
     Args:
         transform: Optional transform to apply to observations
@@ -41,6 +41,11 @@ class PythonCodeActEnv(Environment):
         >>> print(obs.stdout)  # "Hello, World!\n"
         >>> print(obs.exit_code)  # 0
         >>> print(env.state.last_exit_code)  # 0
+        >>>
+        >>> # Shell command example
+        >>> action = ShellAction(command="echo 'Hello from shell'")
+        >>> obs = env.step(action)
+        >>> print(obs.stdout)  # "Hello from shell\n"
     """
 
     def __init__(
@@ -48,6 +53,7 @@ class PythonCodeActEnv(Environment):
     ):
         self.transform = create_safe_coding_transform()
         self._executor = PyExecutor()
+        self._shell_executor = ShellExecutor()
         self._state = CodeState()
 
     def reset(self) -> Observation:
@@ -65,6 +71,9 @@ class PythonCodeActEnv(Environment):
         # Reset executor to clear any previously defined variables/functions
         self._executor = PyExecutor()
 
+        # Reset shell executor
+        self._shell_executor = ShellExecutor()
+
         # Reset transform to clear any accumulated state
         self.transform = create_safe_coding_transform()
 
@@ -79,22 +88,29 @@ class PythonCodeActEnv(Environment):
 
     def step(self, action: Action) -> Observation:
         """
-        Execute code action and return observation.
+        Execute code or shell action and return observation.
 
         Args:
-            action: CodeAction containing the code to execute
+            action: CodeAction (Python code) or ShellAction (shell command)
 
         Returns:
             CodeObservation with execution results (stdout, stderr, exit_code)
 
         Raises:
-            ValueError: If action is not a CodeAction instance
+            ValueError: If action is not a CodeAction or ShellAction instance
         """
-        if not isinstance(action, CodeAction):
-            raise ValueError(f"Expected CodeAction, got {type(action)}")
+        if isinstance(action, CodeAction):
+            # Execute Python code using PyExecutor
+            result = self._executor.run(action.code)
 
-        # Execute the code using PyExecutor
-        result = self._executor.run(action.code)
+        elif isinstance(action, ShellAction):
+            # Execute shell command using ShellExecutor
+            # Create a new executor with the specified timeout
+            shell_exec = ShellExecutor(timeout=action.timeout)
+            result = shell_exec.run(action.command)
+
+        else:
+            raise ValueError(f"Expected CodeAction or ShellAction, got {type(action)}")
 
         # Update state
         self._state.step_count += 1

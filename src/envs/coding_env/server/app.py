@@ -23,7 +23,7 @@ Usage:
 
 from core.env_server import create_app
 
-from ..models import CodeAction, CodeObservation
+from ..models import CodeAction, ShellAction, CodeObservation
 from .python_codeact_env import PythonCodeActEnv
 
 # Create the environment instance

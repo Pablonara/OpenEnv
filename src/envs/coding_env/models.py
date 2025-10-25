@@ -23,6 +23,16 @@ class CodeAction(Action):
 
 
 @dataclass
+class ShellAction(Action):
+    """
+    Represents a single shell command execution request.
+    """
+
+    command: str
+    timeout: int = 30  # Maximum seconds to wait for command completion
+
+
+@dataclass
 class CodeObservation(Observation):
     """
     Result of executing code in the environment.
