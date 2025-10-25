@@ -8,11 +8,13 @@
 
 from .git_server_client import GitServerClient, RepoInfo
 from .local_python_executor import PyExecutor
+from .sandbox_utils import SandboxManager
 from .shell_executor import ShellExecutor
 
 __all__ = [
     "PyExecutor",
     "ShellExecutor",
+    "SandboxManager",
     "GitServerClient",
     "RepoInfo",
 ]

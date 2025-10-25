@@ -6,10 +6,28 @@ Action/Observation types for the Coding environment.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional, List
 
 from core.env_server import Action, Observation, State
+
+
+@dataclass
+class SandboxConfig:
+    """
+    Configuration for chroot sandbox initialization.
+
+    Args:
+        enable: Whether to enable chroot sandboxing (default: True)
+        init_commands: List of shell commands to run during sandbox initialization
+                      (e.g., ["git clone https://...", "cd workspace"])
+        include_package_managers: Whether to include curl/git/apt in sandbox
+                                 If False, they're in /tools/ and must be explicitly copied
+    """
+
+    enable: bool = True
+    init_commands: List[str] = field(default_factory=list)
+    include_package_managers: bool = False
 
 
 @dataclass

@@ -12,6 +12,7 @@ subprocess and capturing the results.
 """
 
 import subprocess
+import os
 from typing import Optional
 
 from core.env_server.types import CodeExecResult
@@ -28,6 +29,7 @@ class ShellExecutor:
         timeout: Maximum time in seconds to allow command to run (default: 30)
         shell: Whether to run command through the shell (default: True)
         cwd: Working directory for command execution (default: None = current directory)
+        chroot_path: Optional path to chroot jail. If provided, all commands run inside chroot.
 
     Example:
         >>> # Basic usage
@@ -52,6 +54,7 @@ class ShellExecutor:
         timeout: int = 30,
         shell: bool = True,
         cwd: Optional[str] = None,
+        chroot_path: Optional[str] = None,
     ):
         """
         Initialize the ShellExecutor.
@@ -60,10 +63,12 @@ class ShellExecutor:
             timeout: Maximum seconds to wait for command completion (default: 30)
             shell: Whether to execute through shell (default: True)
             cwd: Working directory path (default: None)
+            chroot_path: Path to chroot jail (default: None = no chroot)
         """
         self.timeout = timeout
         self.shell = shell
         self.cwd = cwd
+        self.chroot_path = chroot_path
 
     def run(self, command: str) -> CodeExecResult:
         """
@@ -87,6 +92,18 @@ class ShellExecutor:
             >>> print(result.stderr)  # Contains error message
         """
         try:
+            # Wrap command with chroot if enabled
+            if self.chroot_path:
+                # Verify chroot path exists
+                if not os.path.exists(self.chroot_path):
+                    return CodeExecResult(
+                        stdout="",
+                        stderr=f"Chroot path does not exist: {self.chroot_path}",
+                        exit_code=1,
+                    )
+                # Wrap command with chroot
+                command = f"chroot {self.chroot_path} /bin/bash -c {repr(command)}"
+
             # Execute the command using subprocess
             process = subprocess.Popen(
                 command,

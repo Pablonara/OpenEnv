@@ -21,13 +21,14 @@ Usage:
     python -m envs.coding_env.server.app
 """
 
+import os
 from typing import Any, Dict
 
 from fastapi import FastAPI
 from core.env_server import HTTPEnvServer
 from core.env_server.types import Action
 
-from ..models import CodeAction, ShellAction, CodeObservation
+from ..models import CodeAction, ShellAction, CodeObservation, SandboxConfig
 from .python_codeact_env import PythonCodeActEnv
 
 
@@ -64,8 +65,29 @@ class CodingEnvHTTPServer(HTTPEnvServer):
         return action
 
 
+# Parse sandbox configuration from environment variables
+sandbox_enable = os.environ.get("SANDBOX_ENABLE", "true").lower() == "true"
+sandbox_include_pkg_managers = (
+    os.environ.get("SANDBOX_INCLUDE_PKG_MANAGERS", "false").lower() == "true"
+)
+sandbox_init_commands_str = os.environ.get("SANDBOX_INIT_COMMANDS", "")
+
+# Parse init commands (semicolon-separated)
+init_commands = []
+if sandbox_init_commands_str:
+    init_commands = [
+        cmd.strip() for cmd in sandbox_init_commands_str.split(";") if cmd.strip()
+    ]
+
+# Create sandbox configuration
+sandbox_config = SandboxConfig(
+    enable=sandbox_enable,
+    init_commands=init_commands,
+    include_package_managers=sandbox_include_pkg_managers,
+)
+
 # Create the environment instance
-env = PythonCodeActEnv()
+env = PythonCodeActEnv(sandbox_config=sandbox_config)
 
 # Create FastAPI app
 app = FastAPI(title="Coding Environment Server")
