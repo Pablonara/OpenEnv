@@ -66,6 +66,7 @@ class PythonChrootEnv(Environment):
         self.transform = create_safe_chroot_transform()
         self._state = ChrootState()
         self._chroot_path: Optional[Path] = None
+        self._work_dir: Optional[Path] = None  # Working directory inside chroot
 
     def _setup_chroot(self) -> Path:
         """
@@ -87,9 +88,12 @@ class PythonChrootEnv(Environment):
                 target_name = os.path.basename(self.target_dir.rstrip("/"))
                 dest_path = chroot_path / target_name
                 shutil.copytree(self.target_dir, dest_path)
+                # Store the work directory (where target was copied)
+                self._work_dir = dest_path
             else:
                 # If target doesn't exist, create basic directory structure
                 (chroot_path / "home").mkdir(exist_ok=True)
+                self._work_dir = chroot_path
 
             # Create lib directories for symlinks
             (chroot_path / "bin").mkdir(exist_ok=True)
@@ -187,14 +191,14 @@ class PythonChrootEnv(Environment):
         if not isinstance(action, ChrootAction):
             raise ValueError(f"Expected ChrootAction, got {type(action)}")
 
-        if not self._chroot_path:
+        if not self._chroot_path or not self._work_dir:
             raise RuntimeError("Chroot environment not initialized. Call reset() first.")
 
-        # Execute command in chroot
+        # Execute command in the work directory (where target was copied)
         try:
             result = subprocess.run(
                 [self.shell, "-c", action.command],
-                cwd=str(self._chroot_path),
+                cwd=str(self._work_dir),
                 capture_output=True,
                 text=True,
                 timeout=30,  # 30 second timeout
