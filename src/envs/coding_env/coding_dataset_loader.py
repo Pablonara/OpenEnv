@@ -287,7 +287,7 @@ def load_scenarios_for_training(
     limit: Optional[int] = None,
     shuffle: bool = True,
     seed: Optional[int] = 42,
-) -> tuple[CodingDatasetManager, List[CodingScenario]]:
+) -> tuple:
     """
     Convenience function to load scenarios for training.
 
